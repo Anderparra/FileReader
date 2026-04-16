@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Gestión Documental",
+    "slug": "FileReader",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#003087"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.policia.gestiondocumental",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Se necesita acceso para guardar tu firma.",
+        "NSDocumentsFolderUsageDescription": "Se necesita acceso para gestionar documentos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#003087"
+      },
+      "package": "com.policia.gestiondocumental",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-document-picker",
+      "expo-file-system",
+      "expo-print"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
