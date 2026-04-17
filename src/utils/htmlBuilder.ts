@@ -111,6 +111,16 @@ export function buildRenderedHtml(
     ? `<img src="${signatureSrc}" style="height:70px;display:block;margin-bottom:4px;" alt="Firma"/>`
     : '<div style="height:70px;border-bottom:1px solid #333;width:200px;"></div>';
 
+  // Detect what the template already includes so we don't duplicate it.
+  const templateLower = (template.htmlContent ?? '').toLowerCase();
+  const templateHasInvestigatorName =
+    templateLower.includes(profile.fullName.toLowerCase()) ||
+    template.fields.some(
+      (f) => f.type === 'investigator_name' || f.type === 'signature'
+    );
+  const templateHasReserved = templateLower.includes('información pública reservada')
+    || templateLower.includes('informacion publica reservada');
+
   const caseBlock = caseRef
     ? `<p style="font-size:10pt;color:#555;margin:4px 0;">Caso/Radicado: <strong>${escapeHtml(caseRef)}</strong></p>`
     : '';
@@ -164,15 +174,19 @@ export function buildRenderedHtml(
 <body>
   ${caseBlock}
   ${html}
-  <div class="footer-block">
-    ${signatureBlock}
-    <p style="margin:4px 0;font-weight:bold;">${escapeHtml(profile.fullName)}</p>
-    <p style="margin:4px 0;">${escapeHtml(profile.rank)}</p>
-    <p style="margin:4px 0;">${escapeHtml(profile.position)}</p>
-    <p style="margin:4px 0;">${escapeHtml(profile.unit)}</p>
-  </div>
+  ${
+    templateHasInvestigatorName
+      ? `<div class="footer-block" style="margin-top:20px;">${signatureBlock}</div>`
+      : `<div class="footer-block">
+          ${signatureBlock}
+          <p style="margin:4px 0;font-weight:bold;">${escapeHtml(profile.fullName)}</p>
+          <p style="margin:4px 0;">${escapeHtml(profile.rank)}</p>
+          <p style="margin:4px 0;">${escapeHtml(profile.position)}</p>
+          <p style="margin:4px 0;">${escapeHtml(profile.unit)}</p>
+        </div>`
+  }
   ${attachmentsBlock}
-  <div class="footer-reserved">INFORMACIÓN PÚBLICA RESERVADA</div>
+  ${templateHasReserved ? '' : '<div class="footer-reserved">INFORMACIÓN PÚBLICA RESERVADA</div>'}
 </body>
 </html>`;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import AppTextInput from '../../components/common/AppTextInput';
 import AppButton from '../../components/common/AppButton';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { detectFieldsFromFile, UnsupportedFormatError } from '../../utils/fieldDetector';
+import TemplateGuideModal, { shouldShowTemplateGuide } from './TemplateGuideModal';
 import { saveTemplate } from '../../storage/templateStorage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +40,13 @@ export default function TemplateUploadScreen({ navigation }: Props) {
   const [htmlContent, setHtmlContent] = useState('');
   const [detecting, setDetecting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [guideVisible, setGuideVisible] = useState(false);
+
+  useEffect(() => {
+    shouldShowTemplateGuide().then((show) => {
+      if (show) setGuideVisible(true);
+    });
+  }, []);
 
   const handlePickFile = async () => {
     try {
@@ -130,12 +138,30 @@ export default function TemplateUploadScreen({ navigation }: Props) {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+      <TouchableOpacity style={styles.helpBanner} onPress={() => setGuideVisible(true)}>
+        <Text style={styles.helpIcon}>❓</Text>
+        <Text style={styles.helpText}>
+          ¿Cómo preparar mi plantilla para que la app la lea bien? <Text style={styles.helpLink}>Ver guía</Text>
+        </Text>
+      </TouchableOpacity>
+
       <AppButton
         title={fileUri ? `📎  ${fileName}` : Strings.templates.selectFile}
         variant="outline"
         onPress={handlePickFile}
         style={styles.pickBtn}
       />
+
+      {fileUri && fields.length > 0 ? (
+        <View style={styles.summaryBanner}>
+          <Text style={styles.summaryTitle}>
+            ✓ Detectamos {fields.length} campos
+          </Text>
+          <Text style={styles.summaryHint}>
+            Revisa que cada uno tenga el tipo correcto. Si falta alguno, vuelve a Word, resáltalo en amarillo y súbelo otra vez.
+          </Text>
+        </View>
+      ) : null}
 
       {fileUri ? (
         <>
@@ -212,6 +238,8 @@ export default function TemplateUploadScreen({ navigation }: Props) {
           <Text style={styles.placeholderHint}>{Strings.templates.uploadHint}</Text>
         </View>
       )}
+
+      <TemplateGuideModal visible={guideVisible} onClose={() => setGuideVisible(false)} />
     </ScrollView>
   );
 }
@@ -220,6 +248,30 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: Colors.background },
   content: { padding: 16, paddingBottom: 40 },
   pickBtn: { marginBottom: 16 },
+  helpBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight + '18',
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    gap: 8,
+  },
+  helpIcon: { fontSize: 20 },
+  helpText: { flex: 1, color: Colors.textPrimary, fontSize: 13, lineHeight: 18 },
+  helpLink: { color: Colors.primary, fontWeight: '700', textDecorationLine: 'underline' },
+  summaryBanner: {
+    backgroundColor: '#e8f5e9',
+    borderWidth: 1,
+    borderColor: Colors.success,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  summaryTitle: { color: Colors.success, fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  summaryHint: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17 },
   hint: { fontSize: 12, color: Colors.textSecondary, marginBottom: 12 },
   sectionHeader: {
     paddingVertical: 10,

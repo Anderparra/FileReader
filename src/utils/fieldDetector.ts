@@ -22,6 +22,17 @@ function inferType(label: string): FieldType {
   return 'text';
 }
 
+function inferHighlightLabel(phrase: string): string {
+  const trimmed = phrase.trim();
+  if (/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+\d{4}\b/i.test(trimmed)) return 'Fecha';
+  if (/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/.test(trimmed)) return 'Fecha';
+  if (/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(trimmed)) return 'Correo electrónico';
+  if (/\b3\d{2}[\s-]?\d{3}[\s-]?\d{4}\b/.test(trimmed)) return 'Teléfono';
+  if (/^\s*[A-ZÁÉÍÓÚÑ][^a-z]*$/.test(trimmed) && trimmed.length >= 3) return 'Campo resaltado';
+  const short = trimmed.slice(0, 35);
+  return short.length > 0 ? short + (trimmed.length > 35 ? '…' : '') : 'Campo resaltado';
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -138,6 +149,7 @@ export async function detectFieldsFromFile(
   let sourceHtml: string | null = null;
 
   let detectedTables: { kind: 'natural_persons' | 'legal_persons'; html: string }[] = [];
+  let highlightedPhrases: string[] = [];
 
   if (ext === 'txt' || ext === 'html' || ext === 'htm') {
     rawText = await readTxt(uri);
@@ -148,6 +160,7 @@ export async function detectFieldsFromFile(
     detectedTables = docx.tables.filter(
       (t) => t.kind === 'natural_persons' || t.kind === 'legal_persons'
     ) as typeof detectedTables;
+    highlightedPhrases = docx.highlightedPhrases;
   } else if (ext === 'xlsx' || ext === 'xlsm') {
     const xlsx = await readXlsxFormatted(uri);
     rawText = xlsx.text;
@@ -170,6 +183,20 @@ export async function detectFieldsFromFile(
   }
 
   const rawMatches = detectRawMatches(rawText);
+
+  // Yellow-highlighted phrases are a strong author signal — treat them as fields
+  // unless already captured by a pattern-match above.
+  const seenPlaceholders = new Set(rawMatches.map((m) => m.placeholder));
+  for (const phrase of highlightedPhrases) {
+    if (seenPlaceholders.has(phrase)) continue;
+    rawMatches.push({
+      placeholder: phrase,
+      label: inferHighlightLabel(phrase),
+      type: inferType(phrase) || 'text',
+    });
+    seenPlaceholders.add(phrase);
+  }
+
   const textFields: Field[] = rawMatches.map((m, i) => ({
     id: uuidv4(),
     label: m.label,

@@ -6,6 +6,8 @@ export interface DocxResult {
   html: string;
   text: string;
   tables: DetectedTable[];
+  /** Text phrases that the author marked with yellow highlight — strong candidate for "this is a field". */
+  highlightedPhrases: string[];
 }
 
 export type TableKind = 'natural_persons' | 'legal_persons' | 'generic';
@@ -39,6 +41,8 @@ interface RenderContext {
   imageMap: Record<string, string>;
   /** Accumulated detected tables, filled while parsing */
   detectedTables: DetectedTable[];
+  /** Accumulated yellow-highlighted text phrases */
+  highlightedPhrases: string[];
 }
 
 function classifyTable(headerText: string): TableKind {
@@ -52,7 +56,7 @@ function classifyTable(headerText: string): TableKind {
   return 'generic';
 }
 
-function parseRun(runXml: string, ctx: RenderContext): { html: string; text: string } {
+function parseRun(runXml: string, ctx: RenderContext): { html: string; text: string; isYellow: boolean } {
   const rPrMatch = runXml.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
   const rPr = rPrMatch ? rPrMatch[1] : '';
 
@@ -128,7 +132,8 @@ function parseRun(runXml: string, ctx: RenderContext): { html: string; text: str
   if (styles.length && plainText.length > 0) {
     html = `<span style="${styles.join(';')}">${html}</span>`;
   }
-  return { html, text: plainText };
+  const isYellow = highlightMatch?.[1] === 'yellow';
+  return { html, text: plainText, isYellow };
 }
 
 function parseParagraph(pXml: string, ctx: RenderContext): { html: string; text: string } {
@@ -146,12 +151,24 @@ function parseParagraph(pXml: string, ctx: RenderContext): { html: string; text:
   const runRegex = /<w:r(?![A-Za-z])[^>]*>[\s\S]*?<\/w:r>/g;
   let innerHtml = '';
   let text = '';
+  let currentYellow = '';
+  const flushYellow = () => {
+    const phrase = currentYellow.trim();
+    if (phrase) ctx.highlightedPhrases.push(phrase);
+    currentYellow = '';
+  };
   let m: RegExpExecArray | null;
   while ((m = runRegex.exec(pXml)) !== null) {
     const r = parseRun(m[0], ctx);
     innerHtml += r.html;
     text += r.text;
+    if (r.isYellow) {
+      currentYellow += r.text;
+    } else {
+      flushYellow();
+    }
   }
+  flushYellow();
 
   return {
     html: `<p style="${styles.join(';')}">${innerHtml || '&nbsp;'}</p>`,
@@ -258,11 +275,11 @@ export async function readDocxFormatted(uri: string): Promise<DocxResult> {
     const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
     const zip = await JSZip.loadAsync(base64, { base64: true });
     const docFile = zip.file('word/document.xml');
-    if (!docFile) return { html: '', text: '', tables: [] };
+    if (!docFile) return { html: '', text: '', tables: [], highlightedPhrases: [] };
 
     const xml = await docFile.async('string');
     const imageMap = await buildImageMap(zip);
-    const ctx: RenderContext = { imageMap, detectedTables: [] };
+    const ctx: RenderContext = { imageMap, detectedTables: [], highlightedPhrases: [] };
 
     const bodyMatch = xml.match(/<w:body>([\s\S]*)<\/w:body>/);
     const body = bodyMatch ? bodyMatch[1] : xml;
@@ -270,12 +287,14 @@ export async function readDocxFormatted(uri: string): Promise<DocxResult> {
     const { html, text } = parseBlocks(body, ctx);
 
     const wrapped = `<div style="font-family:'Times New Roman',serif;font-size:11pt;line-height:1.4;color:#1a1a1a;">${html}</div>`;
+    const deduped = Array.from(new Set(ctx.highlightedPhrases.filter((p) => p.length >= 2)));
     return {
       html: wrapped,
       text: text.replace(/\n{3,}/g, '\n\n').trim(),
       tables: ctx.detectedTables,
+      highlightedPhrases: deduped,
     };
   } catch {
-    return { html: '', text: '', tables: [] };
+    return { html: '', text: '', tables: [], highlightedPhrases: [] };
   }
 }

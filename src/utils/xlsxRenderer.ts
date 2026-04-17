@@ -187,8 +187,8 @@ export async function readXlsxFormatted(uri: string): Promise<DocxResult> {
     }
 
     const wrapped = `<div style="font-family:'Arial',sans-serif;font-size:10pt;line-height:1.4;color:#1a1a1a;">${html}</div>`;
-    return { html: wrapped, text, tables };
+    return { html: wrapped, text, tables, highlightedPhrases: [] };
   } catch {
-    return { html: '', text: '', tables: [] };
+    return { html: '', text: '', tables: [], highlightedPhrases: [] };
   }
 }
