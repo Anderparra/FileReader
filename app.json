@@ -34,10 +34,23 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-document-picker"
+      "expo-document-picker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21"
+          }
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "dc94e581-191e-4503-bcee-8c352d6b0424"
+      }
     }
   }
 }
