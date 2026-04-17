@@ -165,6 +165,7 @@ function parseTable(tblXml: string, ctx: RenderContext): { html: string; text: s
     '<table style="border-collapse:collapse;width:100%;margin:6pt 0;border:1px solid #666;">';
   let text = '';
   let headerText = '';
+  let allText = '';
   let rowIndex = 0;
   let rm: RegExpExecArray | null;
   while ((rm = rowRegex.exec(tblXml)) !== null) {
@@ -177,7 +178,8 @@ function parseTable(tblXml: string, ctx: RenderContext): { html: string; text: s
       const { html: cellHtml, text: cellText } = parseBlocks(cellContent, ctx);
       html += `<td style="border:1px solid #666;padding:4pt 6pt;vertical-align:top;">${cellHtml}</td>`;
       text += cellText + '\t';
-      if (rowIndex === 0) headerText += cellText + ' ';
+      if (rowIndex < 3) headerText += cellText + ' ';
+      allText += cellText + ' ';
     }
     html += '</tr>';
     text += '\n';
@@ -185,7 +187,11 @@ function parseTable(tblXml: string, ctx: RenderContext): { html: string; text: s
   }
   html += '</table>';
 
-  const kind = classifyTable(headerText);
+  let kind = classifyTable(headerText);
+  if (kind === 'generic') {
+    // fall back: scan the whole table text for discriminating keywords
+    kind = classifyTable(allText);
+  }
   if (kind !== 'generic') {
     ctx.detectedTables.push({ kind, html });
   }

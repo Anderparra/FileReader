@@ -36,6 +36,7 @@ import { getDocumentById, saveDocument } from '../../storage/documentStorage';
 import { getProfile } from '../../storage/profileStorage';
 import { buildRenderedHtml } from '../../utils/htmlBuilder';
 import { todaySpanish } from '../../utils/dateUtils';
+import { resolveSignatureDataUri } from '../../utils/uriUtils';
 import { InvestigatorProfile } from '../../types';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -57,6 +58,7 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
   const [showLivePreview, setShowLivePreview] = useState(true);
   const [caseRef, setCaseRef] = useState('');
   const [attachments, setAttachments] = useState<DocumentAttachment[]>([]);
+  const [signatureDataUri, setSignatureDataUri] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -69,6 +71,9 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
       if (!tmpl) { navigation.goBack(); return; }
       setTemplate(tmpl);
       setProfile(prof);
+
+      const sig = await resolveSignatureDataUri(prof);
+      setSignatureDataUri(sig);
 
       const initial = new Map<string, DocumentFieldValue['value']>();
 
@@ -123,15 +128,15 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
 
   const livePreviewHtml = useMemo(() => {
     if (!template || !profile) return '';
-    return buildRenderedHtml(template, buildFieldValuesArray(), profile, { attachments, caseRef });
-  }, [template, profile, buildFieldValuesArray, attachments, caseRef]);
+    return buildRenderedHtml(template, buildFieldValuesArray(), profile, { attachments, caseRef, signatureDataUri });
+  }, [template, profile, buildFieldValuesArray, attachments, caseRef, signatureDataUri]);
 
   const handleSave = async (status: SavedDocument['status']) => {
     if (!template || !profile) return;
     setSaving(true);
     try {
       const fvArray = buildFieldValuesArray();
-      const rendered = buildRenderedHtml(template, fvArray, profile, { attachments, caseRef });
+      const rendered = buildRenderedHtml(template, fvArray, profile, { attachments, caseRef, signatureDataUri });
       const now = new Date().toISOString();
       await saveDocument({
         id: docId,
@@ -159,7 +164,7 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
   const handlePreview = () => {
     if (!template || !profile) return;
     const fvArray = buildFieldValuesArray();
-    const rendered = buildRenderedHtml(template, fvArray, profile, { attachments, caseRef });
+    const rendered = buildRenderedHtml(template, fvArray, profile, { attachments, caseRef, signatureDataUri });
     navigation.navigate('DocumentPreview', { renderedHtml: rendered, title: docTitle });
   };
 

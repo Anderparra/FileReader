@@ -17,8 +17,9 @@ import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { useProfile } from '../../hooks/useProfile';
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Switch } from 'react-native';
 import { exportBackup, importBackup } from '../../utils/backup';
@@ -41,6 +42,29 @@ export default function ProfileScreen() {
   React.useEffect(() => {
     isSecurityEnabled().then(setSecurityOn);
   }, []);
+
+  const pickSignatureImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permiso denegado', 'No se otorgó permiso a la galería.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const b64 = await readAsStringAsync(asset.uri, { encoding: EncodingType.Base64 });
+      const mime = asset.mimeType ?? (asset.uri.endsWith('.jpg') || asset.uri.endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
+      setSignatureBase64(`data:${mime};base64,${b64}`);
+      setShowSigPad(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo leer la imagen.');
+    }
+  };
 
   const toggleSecurity = async (value: boolean) => {
     if (value) {
@@ -129,21 +153,16 @@ export default function ProfileScreen() {
     }
     setSaving(true);
     try {
-      let signatureFileUri = profile?.signatureFileUri;
-      if (signatureBase64) {
-        const fileUri = (documentDirectory ?? '') + 'signature.png';
-        const base64Data = signatureBase64.replace(/^data:image\/png;base64,/, '');
-        await writeAsStringAsync(fileUri, base64Data, {
-          encoding: EncodingType.Base64,
-        });
-        signatureFileUri = fileUri;
-      }
+      const signatureDataUri = signatureBase64
+        ? (signatureBase64.startsWith('data:') ? signatureBase64 : `data:image/png;base64,${signatureBase64}`)
+        : profile?.signatureDataUri;
       await save({
         fullName: fullName.trim(),
         rank: rank.trim(),
         position: position.trim(),
         unit: unit.trim(),
-        signatureFileUri,
+        signatureDataUri,
+        signatureFileUri: signatureBase64 ? undefined : profile?.signatureFileUri,
         isConfigured: true,
       });
       setEditing(false);
@@ -173,11 +192,11 @@ export default function ProfileScreen() {
           <Row label="Unidad" value={profile?.unit ?? '—'} />
         </View>
 
-        {profile?.signatureFileUri ? (
+        {profile?.signatureDataUri || profile?.signatureFileUri ? (
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Firma</Text>
             <Image
-              source={{ uri: profile.signatureFileUri }}
+              source={{ uri: profile.signatureDataUri || profile.signatureFileUri }}
               style={styles.sigImage}
               resizeMode="contain"
             />
@@ -251,7 +270,20 @@ export default function ProfileScreen() {
             onDrawEnd={() => setScrollEnabled(true)}
           />
         ) : (
-          <AppButton title="Cambiar firma" variant="outline" onPress={() => setShowSigPad(true)} style={styles.sigBtn} />
+          <View style={styles.sigActions}>
+            <AppButton
+              title="Dibujar firma"
+              variant="outline"
+              onPress={() => setShowSigPad(true)}
+              style={styles.sigActionBtn}
+            />
+            <AppButton
+              title="📁  Subir imagen"
+              variant="outline"
+              onPress={pickSignatureImage}
+              style={styles.sigActionBtn}
+            />
+          </View>
         )}
 
         <View style={styles.row}>
@@ -320,6 +352,8 @@ const styles = StyleSheet.create({
   sigImage: { height: 90, backgroundColor: Colors.background, borderRadius: 8 },
   sigLabel: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' },
   sigBtn: { marginBottom: 16 },
+  sigActions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  sigActionBtn: { flex: 1 },
   row: { flexDirection: 'row', gap: 12, marginTop: 8 },
   halfBtn: { flex: 1 },
   editBtn: { marginTop: 8 },

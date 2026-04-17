@@ -2,6 +2,13 @@ import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { Field, FieldType } from '../types';
 import { FIELD_PATTERNS, NAME_STOPWORDS, SEMANTIC_RULES } from '../constants/fieldPatterns';
 import { readDocxFormatted } from './docxRenderer';
+import { readXlsxFormatted } from './xlsxRenderer';
+
+export class UnsupportedFormatError extends Error {
+  constructor(public ext: string, message: string) {
+    super(message);
+  }
+}
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -141,6 +148,23 @@ export async function detectFieldsFromFile(
     detectedTables = docx.tables.filter(
       (t) => t.kind === 'natural_persons' || t.kind === 'legal_persons'
     ) as typeof detectedTables;
+  } else if (ext === 'xlsx' || ext === 'xlsm') {
+    const xlsx = await readXlsxFormatted(uri);
+    rawText = xlsx.text;
+    sourceHtml = xlsx.html;
+    detectedTables = xlsx.tables.filter(
+      (t) => t.kind === 'natural_persons' || t.kind === 'legal_persons'
+    ) as typeof detectedTables;
+  } else if (ext === 'pdf') {
+    throw new UnsupportedFormatError(
+      'pdf',
+      'Los archivos PDF aún no pueden procesarse como plantillas. Abre el PDF, copia el texto y pégalo en un archivo .txt, o convierte el PDF a .docx con Microsoft Word.'
+    );
+  } else if (ext === 'doc') {
+    throw new UnsupportedFormatError(
+      'doc',
+      'El formato .doc antiguo no es compatible. Abre el archivo con Word y guárdalo como .docx para poder usarlo.'
+    );
   } else {
     rawText = await readTxt(uri).catch(() => '');
   }

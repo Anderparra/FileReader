@@ -17,7 +17,8 @@ import SignaturePad from '../../components/document/SignaturePad';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { saveProfile } from '../../storage/profileStorage';
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
@@ -41,23 +42,16 @@ export default function ProfileSetupScreen({ navigation }: Props) {
 
     setSaving(true);
     try {
-      let signatureFileUri: string | undefined;
-
-      if (signatureBase64) {
-        const fileUri = (documentDirectory ?? '') + 'signature.png';
-        const base64Data = signatureBase64.replace(/^data:image\/png;base64,/, '');
-        await writeAsStringAsync(fileUri, base64Data, {
-          encoding: EncodingType.Base64,
-        });
-        signatureFileUri = fileUri;
-      }
+      const signatureDataUri = signatureBase64
+        ? (signatureBase64.startsWith('data:') ? signatureBase64 : `data:image/png;base64,${signatureBase64}`)
+        : undefined;
 
       await saveProfile({
         fullName: fullName.trim(),
         rank: rank.trim(),
         position: position.trim(),
         unit: unit.trim(),
-        signatureFileUri,
+        signatureDataUri,
         isConfigured: true,
       });
 
@@ -66,6 +60,29 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       Alert.alert('Error al guardar', err?.message ?? String(err));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const pickSignatureImage = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('Permiso denegado', 'No se otorgó permiso a la galería.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const b64 = await readAsStringAsync(asset.uri, { encoding: EncodingType.Base64 });
+      const mime = asset.mimeType ?? (asset.uri.endsWith('.jpg') || asset.uri.endsWith('.jpeg') ? 'image/jpeg' : 'image/png');
+      setSignatureBase64(`data:${mime};base64,${b64}`);
+      setShowSigPad(false);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo leer la imagen.');
     }
   };
 
@@ -140,12 +157,20 @@ export default function ProfileSetupScreen({ navigation }: Props) {
             onDrawEnd={() => setScrollEnabled(true)}
           />
         ) : (
-          <AppButton
-            title={Strings.profile.drawSignature}
-            variant="outline"
-            onPress={() => setShowSigPad(true)}
-            style={styles.sigBtn}
-          />
+          <View style={styles.sigActions}>
+            <AppButton
+              title={Strings.profile.drawSignature}
+              variant="outline"
+              onPress={() => setShowSigPad(true)}
+              style={styles.sigActionBtn}
+            />
+            <AppButton
+              title="📁  Subir imagen"
+              variant="outline"
+              onPress={pickSignatureImage}
+              style={styles.sigActionBtn}
+            />
+          </View>
         )}
 
         <AppButton
@@ -189,6 +214,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   sigBtn: { marginBottom: 16 },
+  sigActions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  sigActionBtn: { flex: 1 },
   sigPreview: { marginBottom: 16 },
   sigImage: { height: 100, backgroundColor: Colors.surface, borderRadius: 8, marginBottom: 8 },
   redrawBtn: {},

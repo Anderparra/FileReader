@@ -79,6 +79,9 @@ export interface InvestigatorProfile {
   rank: string;
   position: string;
   unit: string;
+  /** Data URI (data:image/png;base64,...) - source of truth */
+  signatureDataUri?: string;
+  /** Legacy file URI, kept for migration. New code should not write this. */
   signatureFileUri?: string;
   isConfigured: boolean;
 }

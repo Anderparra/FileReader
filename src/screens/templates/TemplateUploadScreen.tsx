@@ -17,7 +17,7 @@ import { Strings } from '../../constants/strings';
 import AppTextInput from '../../components/common/AppTextInput';
 import AppButton from '../../components/common/AppButton';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
-import { detectFieldsFromFile } from '../../utils/fieldDetector';
+import { detectFieldsFromFile, UnsupportedFormatError } from '../../utils/fieldDetector';
 import { saveTemplate } from '../../storage/templateStorage';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
@@ -43,27 +43,37 @@ export default function TemplateUploadScreen({ navigation }: Props) {
   const handlePickFile = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/plain', 'text/html', 'application/msword',
+        type: [
+          'text/plain',
+          'text/html',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          '*/*'],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          '*/*',
+        ],
         copyToCacheDirectory: true,
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      setFileName(asset.name);
-      setFileUri(asset.uri);
-      setTemplateName(asset.name.replace(/\.[^.]+$/, ''));
 
       setDetecting(true);
       try {
         const detected = await detectFieldsFromFile(asset.uri, asset.name);
+        setFileName(asset.name);
+        setFileUri(asset.uri);
+        setTemplateName(asset.name.replace(/\.[^.]+$/, ''));
         setFields(detected.fields);
         setHtmlContent(detected.htmlContent);
+      } catch (err: any) {
+        if (err instanceof UnsupportedFormatError) {
+          Alert.alert('Formato no compatible', err.message);
+        } else {
+          Alert.alert('Error', err?.message ?? 'No se pudo leer el archivo.');
+        }
       } finally {
         setDetecting(false);
       }
-    } catch (e) {
-      Alert.alert('Error', 'No se pudo leer el archivo.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo leer el archivo.');
     }
   };
 

@@ -3,6 +3,8 @@ import { DocumentAttachment, DocumentFieldValue, InvestigatorProfile, LegalPerso
 export interface RenderOptions {
   attachments?: DocumentAttachment[];
   caseRef?: string;
+  /** Pre-resolved data URI for the profile signature, avoids file:// issues */
+  signatureDataUri?: string;
 }
 
 function escapeHtml(text: string): string {
@@ -63,7 +65,12 @@ export function buildRenderedHtml(
   profile: InvestigatorProfile,
   options: RenderOptions = {}
 ): string {
-  const { attachments = [], caseRef } = options;
+  const { attachments = [], caseRef, signatureDataUri } = options;
+  const signatureSrc =
+    signatureDataUri ||
+    profile.signatureDataUri ||
+    profile.signatureFileUri ||
+    '';
   const valueMap = new Map<string, DocumentFieldValue['value']>();
   for (const fv of fieldValues) valueMap.set(fv.fieldId, fv.value);
 
@@ -83,8 +90,8 @@ export function buildRenderedHtml(
         replacement = legalPersonsTable((value as LegalPerson[]) ?? []);
         break;
       case 'signature':
-        if (value) {
-          replacement = `<img src="${value}" style="height:60px;display:block;" alt="Firma"/>`;
+        if (signatureSrc) {
+          replacement = `<img src="${signatureSrc}" style="height:60px;display:block;" alt="Firma"/>`;
         }
         break;
       case 'investigator_name':
@@ -100,8 +107,8 @@ export function buildRenderedHtml(
     html = html.split(token).join(replacement);
   }
 
-  const signatureBlock = profile.signatureFileUri
-    ? `<img src="${profile.signatureFileUri}" style="height:70px;display:block;margin-bottom:4px;" alt="Firma"/>`
+  const signatureBlock = signatureSrc
+    ? `<img src="${signatureSrc}" style="height:70px;display:block;margin-bottom:4px;" alt="Firma"/>`
     : '<div style="height:70px;border-bottom:1px solid #333;width:200px;"></div>';
 
   const caseBlock = caseRef
