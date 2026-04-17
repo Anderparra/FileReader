@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { CompositeNavigationProp, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -43,10 +44,29 @@ const STATUS_COLORS: Record<string, string> = {
 export default function DocumentListScreen({ navigation }: Props) {
   const { documents, loading, remove, reload } = useDocuments();
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const [query, setQuery] = useState('');
 
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
-  const filtered = filter === 'all' ? documents : documents.filter((d) => d.status === filter);
+  const filtered = useMemo(() => {
+    const byStatus = filter === 'all' ? documents : documents.filter((d) => d.status === filter);
+    const q = query.trim().toLowerCase();
+    if (!q) return byStatus;
+    return byStatus.filter((d) => {
+      if (d.title.toLowerCase().includes(q)) return true;
+      if (d.templateName.toLowerCase().includes(q)) return true;
+      for (const fv of d.fieldValues) {
+        if (typeof fv.value === 'string' && fv.value.toLowerCase().includes(q)) return true;
+        if (Array.isArray(fv.value)) {
+          for (const row of fv.value) {
+            const json = JSON.stringify(row).toLowerCase();
+            if (json.includes(q)) return true;
+          }
+        }
+      }
+      return false;
+    });
+  }, [documents, filter, query]);
 
   const handleOpen = (doc: SavedDocument) => {
     if (doc.status === 'draft') {
@@ -67,6 +87,21 @@ export default function DocumentListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.flex}>
+      <View style={styles.searchWrap}>
+        <TextInput
+          placeholder="Buscar por título, plantilla, persona, cédula..."
+          placeholderTextColor={Colors.textSecondary}
+          value={query}
+          onChangeText={setQuery}
+          style={styles.searchInput}
+        />
+        {query ? (
+          <TouchableOpacity onPress={() => setQuery('')} style={styles.searchClear}>
+            <Text style={styles.searchClearText}>✕</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map((f) => (
           <TouchableOpacity
@@ -151,4 +186,24 @@ const styles = StyleSheet.create({
   date: { fontSize: 12, color: Colors.textDisabled, marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusText: { fontSize: 12, fontWeight: '600' },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    fontSize: 14,
+    color: Colors.textPrimary,
+  },
+  searchClear: { padding: 8 },
+  searchClearText: { fontSize: 16, color: Colors.textSecondary },
 });

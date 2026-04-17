@@ -28,6 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function HomeScreen({ navigation }: Props) {
   const [recent, setRecent] = useState<SavedDocument[]>([]);
+  const [allDocs, setAllDocs] = useState<SavedDocument[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -37,6 +38,7 @@ export default function HomeScreen({ navigation }: Props) {
       const load = async () => {
         setLoading(true);
         const [docs, tmplts] = await Promise.all([getAllDocuments(), getAllTemplates()]);
+        setAllDocs(docs);
         setRecent(docs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5));
         setTemplates(tmplts);
         setLoading(false);
@@ -71,6 +73,25 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={styles.header}>
         <Text style={styles.appName}>Gestión Documental</Text>
         <Text style={styles.subtitle}>Policía Nacional</Text>
+      </View>
+
+      <View style={styles.statsRow}>
+        <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('Plantillas')}>
+          <Text style={styles.statNumber}>{templates.length}</Text>
+          <Text style={styles.statLabel}>Plantillas</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('Documentos')}>
+          <Text style={[styles.statNumber, { color: Colors.warning }]}>
+            {allDocs.filter((d) => d.status === 'draft').length}
+          </Text>
+          <Text style={styles.statLabel}>Borradores</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.statCard} onPress={() => navigation.navigate('Documentos')}>
+          <Text style={[styles.statNumber, { color: Colors.primary }]}>
+            {allDocs.filter((d) => d.status === 'exported').length}
+          </Text>
+          <Text style={styles.statLabel}>Exportados</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.actionsRow}>
@@ -162,6 +183,18 @@ const styles = StyleSheet.create({
   },
   appName: { fontSize: 22, fontWeight: '700', color: Colors.white },
   subtitle: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  statsRow: { flexDirection: 'row', padding: 12, gap: 8, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statNumber: { fontSize: 24, fontWeight: '700', color: Colors.primary },
+  statLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 2, textTransform: 'uppercase', fontWeight: '600' },
   actionsRow: { flexDirection: 'row', padding: 16, gap: 12 },
   actionCard: {
     flex: 1,

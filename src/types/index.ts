@@ -72,3 +72,11 @@ export interface InvestigatorProfile {
   signatureFileUri?: string;
   isConfigured: boolean;
 }
+
+export interface Snippet {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}

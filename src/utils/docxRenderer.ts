@@ -74,7 +74,9 @@ function parseRun(runXml: string, ctx: RenderContext): { html: string; text: str
   let tm: RegExpExecArray | null;
   while ((tm = tokenRegex.exec(runXml)) !== null) {
     const tag = tm[0];
-    if (tag.startsWith('<w:t')) {
+    // tm[1] is only defined when the <w:t>...</w:t> alternation matched.
+    // Checking tag.startsWith('<w:t') would also accept <w:tab/> and crash below.
+    if (tm[1] !== undefined) {
       const text = decodeXmlEntities(tm[1]);
       parts.push(escapeHtml(text));
       plainText += text;

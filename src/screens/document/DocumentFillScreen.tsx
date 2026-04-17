@@ -28,6 +28,7 @@ import AppButton from '../../components/common/AppButton';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
 import NaturalPersonRow from '../../components/forms/NaturalPersonRow';
 import LegalPersonRow from '../../components/forms/LegalPersonRow';
+import SnippetPicker from '../../components/common/SnippetPicker';
 import { getTemplateById } from '../../storage/templateStorage';
 import { getDocumentById, saveDocument } from '../../storage/documentStorage';
 import { getProfile } from '../../storage/profileStorage';
@@ -309,14 +310,24 @@ function renderField(
 
     default:
       return (
-        <AppTextInput
-          key={field.id}
-          label={field.label}
-          value={(value as string) ?? ''}
-          onChangeText={(t) => setValue(field.id, t)}
-          multiline={field.type === 'multiline'}
-          numberOfLines={field.type === 'multiline' ? 4 : 1}
-        />
+        <View key={field.id}>
+          <AppTextInput
+            label={field.label}
+            value={(value as string) ?? ''}
+            onChangeText={(t) => setValue(field.id, t)}
+            multiline={field.type === 'multiline'}
+            numberOfLines={field.type === 'multiline' ? 4 : 1}
+          />
+          {field.type === 'multiline' ? (
+            <SnippetPicker
+              onInsert={(text) => {
+                const current = (value as string) ?? '';
+                const joined = current ? `${current}\n\n${text}` : text;
+                setValue(field.id, joined);
+              }}
+            />
+          ) : null}
+        </View>
       );
   }
 }

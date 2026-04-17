@@ -18,6 +18,8 @@ import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { useProfile } from '../../hooks/useProfile';
 import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import * as DocumentPicker from 'expo-document-picker';
+import { exportBackup, importBackup } from '../../utils/backup';
 
 export default function ProfileScreen() {
   const { profile, loading, save } = useProfile();
@@ -30,6 +32,56 @@ export default function ProfileScreen() {
   const [showSigPad, setShowSigPad] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const handleBackup = async () => {
+    setBusy(true);
+    try {
+      await exportBackup();
+      Alert.alert('Copia de seguridad', 'Archivo generado y listo para compartir.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo crear la copia.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', '*/*'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      Alert.alert(
+        'Restaurar copia',
+        'Se sobrescribirán tus plantillas, documentos, frases y perfil actuales. ¿Continuar?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Restaurar',
+            style: 'destructive',
+            onPress: async () => {
+              setBusy(true);
+              try {
+                await importBackup(result.assets[0].uri);
+                Alert.alert(
+                  'Restauración completa',
+                  'Cierra y vuelve a abrir la app para ver los cambios.',
+                );
+              } catch (err: any) {
+                Alert.alert('Error', err?.message ?? 'Archivo inválido.');
+              } finally {
+                setBusy(false);
+              }
+            },
+          },
+        ],
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err?.message ?? 'No se pudo leer el archivo.');
+    }
+  };
 
   if (loading) return <LoadingOverlay message={Strings.common.loading} />;
 
@@ -105,6 +157,26 @@ export default function ProfileScreen() {
         ) : null}
 
         <AppButton title={Strings.profile.editProfile} onPress={startEdit} style={styles.editBtn} />
+
+        <View style={styles.backupSection}>
+          <Text style={styles.sectionTitle}>Copia de seguridad</Text>
+          <Text style={styles.sectionHint}>
+            Exporta o restaura tus plantillas, documentos, frases y perfil.
+          </Text>
+          <AppButton
+            title={busy ? 'Trabajando...' : '💾  Crear copia de seguridad'}
+            variant="outline"
+            onPress={handleBackup}
+            loading={busy}
+            style={styles.backupBtn}
+          />
+          <AppButton
+            title="📂  Restaurar desde archivo"
+            variant="outline"
+            onPress={handleRestore}
+            style={styles.backupBtn}
+          />
+        </View>
       </ScrollView>
     );
   }
@@ -210,4 +282,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12, marginTop: 8 },
   halfBtn: { flex: 1 },
   editBtn: { marginTop: 8 },
+  backupSection: { marginTop: 28, paddingTop: 16, borderTopWidth: 1, borderTopColor: Colors.border },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.primary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionHint: { fontSize: 12, color: Colors.textSecondary, marginBottom: 12, lineHeight: 17 },
+  backupBtn: { marginBottom: 8 },
 });
