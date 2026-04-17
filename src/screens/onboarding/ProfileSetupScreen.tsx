@@ -92,7 +92,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           label={Strings.profile.fullName}
           value={fullName}
           onChangeText={setFullName}
-          placeholder="Ej. Oscar Stiven Parra Hoyos"
+          placeholder="Ej. Juan Carlos Rodríguez López"
           autoCapitalize="words"
         />
         <AppTextInput

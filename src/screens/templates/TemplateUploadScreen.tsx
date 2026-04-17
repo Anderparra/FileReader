@@ -146,6 +146,14 @@ export default function TemplateUploadScreen({ navigation }: Props) {
 
           {fields.map((field) => (
             <View key={field.id} style={styles.fieldCard}>
+              {field.placeholder ? (
+                <View style={styles.detectedBadge}>
+                  <Text style={styles.detectedLabel}>Detectado en el documento</Text>
+                  <Text style={styles.detectedValue} numberOfLines={2}>
+                    {field.placeholder}
+                  </Text>
+                </View>
+              ) : null}
               <AppTextInput
                 label="Etiqueta"
                 value={field.label}
@@ -239,6 +247,28 @@ const styles = StyleSheet.create({
   typeChipTextActive: { color: Colors.white },
   removeBtn: { alignSelf: 'flex-end' },
   removeBtnText: { fontSize: 13, color: Colors.danger },
+  detectedBadge: {
+    backgroundColor: Colors.primaryLight + '22',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginBottom: 10,
+  },
+  detectedLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  detectedValue: {
+    fontSize: 13,
+    color: Colors.textPrimary,
+    fontStyle: 'italic',
+  },
   addBtn: { marginBottom: 12 },
   saveBtn: {},
   placeholder: { alignItems: 'center', marginTop: 40, padding: 24 },

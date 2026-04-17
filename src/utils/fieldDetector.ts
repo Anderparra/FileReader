@@ -1,6 +1,6 @@
 import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { Field, FieldType } from '../types';
-import { FIELD_PATTERNS, SEMANTIC_RULES } from '../constants/fieldPatterns';
+import { FIELD_PATTERNS, NAME_STOPWORDS, SEMANTIC_RULES } from '../constants/fieldPatterns';
 // @ts-ignore
 import JSZip from 'jszip';
 import 'react-native-get-random-values';
@@ -30,27 +30,61 @@ interface RawMatch {
   type: FieldType;
 }
 
+function isInstitutionalName(match: string): boolean {
+  const words = match.split(/\s+/);
+  return words.some((w) => NAME_STOPWORDS.has(w.toUpperCase()));
+}
+
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(' ')
+    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 function detectRawMatches(text: string): RawMatch[] {
   const matches: RawMatch[] = [];
-  const seen = new Set<string>();
+  const seenKeys = new Set<string>();
+  const labelCounts = new Map<string, number>();
 
   for (const pattern of FIELD_PATTERNS) {
     const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+    const mode = pattern.mode ?? 'placeholder';
     let m: RegExpExecArray | null;
+
     while ((m = regex.exec(text)) !== null) {
-      const placeholder = m[0];
-      const rawLabel = m[1] ?? pattern.labelHint;
-      const label = rawLabel
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase())
-        .trim();
+      const full = m[0];
+      const placeholder = full;
 
-      const normalizedKey = label.toLowerCase().trim();
-      if (seen.has(normalizedKey)) continue;
-      seen.add(normalizedKey);
+      let label: string;
+      if (mode === 'value') {
+        if (pattern.labelHint === 'Nombre completo' && isInstitutionalName(full)) continue;
+        label = pattern.labelHint;
+      } else {
+        const rawLabel = m[1] ?? pattern.labelHint;
+        label = rawLabel
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+          .trim();
+      }
 
-      const type = pattern.type !== 'text' ? pattern.type : inferType(label);
-      matches.push({ placeholder, label, type });
+      const key = `${label.toLowerCase()}::${placeholder}`;
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+
+      let finalLabel = label;
+      if (mode === 'value') {
+        const count = (labelCounts.get(label) ?? 0) + 1;
+        labelCounts.set(label, count);
+        if (count > 1) {
+          const preview = titleCase(full.slice(0, 25));
+          finalLabel = `${label} (${preview}${full.length > 25 ? '…' : ''})`;
+        }
+      }
+
+      const type = pattern.type !== 'text' ? pattern.type : inferType(finalLabel);
+      matches.push({ placeholder, label: finalLabel, type });
     }
   }
 
@@ -59,16 +93,26 @@ function detectRawMatches(text: string): RawMatch[] {
 
 function buildHtmlContent(rawText: string, fields: Field[]): string {
   let html = escapeHtml(rawText).replace(/\n/g, '<br/>');
-  for (const field of fields) {
+  const sortedFields = [...fields].sort((a, b) => b.placeholder.length - a.placeholder.length);
+  for (const field of sortedFields) {
     const escaped = escapeHtml(field.placeholder);
     const token = `{{${field.id}}}`;
     html = html.split(escaped).join(token);
   }
-  return `<p style="font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;">${html}</p>`;
+  return `<div style="font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;">${html}</div>`;
 }
 
 async function readTxt(uri: string): Promise<string> {
   return readAsStringAsync(uri, { encoding: EncodingType.UTF8 });
+}
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 async function readDocx(uri: string): Promise<string> {
@@ -80,7 +124,17 @@ async function readDocx(uri: string): Promise<string> {
     const xmlFile = zip.file('word/document.xml');
     if (!xmlFile) return '';
     const xml = await xmlFile.async('string');
-    return xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    let out = xml;
+    out = out.replace(/<w:p\b[^>]*\/>/g, '\n');
+    out = out.replace(/<\/w:p>/g, '\n');
+    out = out.replace(/<w:br\b[^>]*\/?>(<\/w:br>)?/g, '\n');
+    out = out.replace(/<w:tab\b[^>]*\/?>(<\/w:tab>)?/g, '\t');
+    out = out.replace(/<[^>]+>/g, '');
+    out = decodeXmlEntities(out);
+    out = out.replace(/[ \t]+/g, ' ');
+    out = out.replace(/\n{3,}/g, '\n\n');
+    return out.trim();
   } catch {
     return '';
   }
