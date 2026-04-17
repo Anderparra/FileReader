@@ -17,7 +17,7 @@ import SignaturePad from '../../components/document/SignaturePad';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { saveProfile } from '../../storage/profileStorage';
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system';
+import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
@@ -31,6 +31,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   const [signatureBase64, setSignatureBase64] = useState('');
   const [saving, setSaving] = useState(false);
   const [showSigPad, setShowSigPad] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   const handleSave = async () => {
     if (!fullName.trim()) {
@@ -61,6 +62,8 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       });
 
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    } catch (err: any) {
+      Alert.alert('Error al guardar', err?.message ?? String(err));
     } finally {
       setSaving(false);
     }
@@ -71,7 +74,12 @@ export default function ProfileSetupScreen({ navigation }: Props) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        scrollEnabled={scrollEnabled}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <View style={styles.badge}>
             <Text style={styles.badgeIcon}>🔵</Text>
@@ -126,8 +134,10 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           </View>
         ) : showSigPad ? (
           <SignaturePad
-            onSave={(b64) => { setSignatureBase64(b64); setShowSigPad(false); }}
+            onSave={(b64) => { setSignatureBase64(b64); setShowSigPad(false); setScrollEnabled(true); }}
             onClear={() => setSignatureBase64('')}
+            onDrawStart={() => setScrollEnabled(false)}
+            onDrawEnd={() => setScrollEnabled(true)}
           />
         ) : (
           <AppButton

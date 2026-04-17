@@ -7,9 +7,11 @@ interface Props {
   onSave: (base64: string) => void;
   onClear?: () => void;
   height?: number;
+  onDrawStart?: () => void;
+  onDrawEnd?: () => void;
 }
 
-export default function SignaturePad({ onSave, onClear, height = 200 }: Props) {
+export default function SignaturePad({ onSave, onClear, height = 200, onDrawStart, onDrawEnd }: Props) {
   const ref = useRef<SignatureViewRef>(null);
 
   const handleOK = (signature: string) => {
@@ -35,7 +37,14 @@ export default function SignaturePad({ onSave, onClear, height = 200 }: Props) {
   return (
     <View style={styles.container}>
       <Text style={styles.label}>Dibuja tu firma en el recuadro</Text>
-      <View style={[styles.padContainer, { height }]}>
+      <View
+        style={[styles.padContainer, { height }]}
+        onStartShouldSetResponder={() => { onDrawStart?.(); return false; }}
+        onResponderRelease={() => onDrawEnd?.()}
+        onTouchStart={() => onDrawStart?.()}
+        onTouchEnd={() => onDrawEnd?.()}
+        onTouchCancel={() => onDrawEnd?.()}
+      >
         <SignatureCanvas
           ref={ref}
           onOK={handleOK}

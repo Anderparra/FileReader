@@ -17,7 +17,7 @@ import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { useProfile } from '../../hooks/useProfile';
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system';
+import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 export default function ProfileScreen() {
   const { profile, loading, save } = useProfile();
@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const [signatureBase64, setSignatureBase64] = useState('');
   const [showSigPad, setShowSigPad] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
 
   if (loading) return <LoadingOverlay message={Strings.common.loading} />;
 
@@ -67,6 +68,8 @@ export default function ProfileScreen() {
       });
       setEditing(false);
       Alert.alert('', Strings.profile.profileSaved);
+    } catch (err: any) {
+      Alert.alert('Error al guardar', err?.message ?? String(err));
     } finally {
       setSaving(false);
     }
@@ -111,7 +114,12 @@ export default function ProfileScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        scrollEnabled={scrollEnabled}
+        keyboardShouldPersistTaps="handled"
+      >
         <AppTextInput label={Strings.profile.fullName} value={fullName} onChangeText={setFullName} autoCapitalize="words" />
         <AppTextInput label={Strings.profile.rank} value={rank} onChangeText={setRank} autoCapitalize="words" />
         <AppTextInput label={Strings.profile.position} value={position} onChangeText={setPosition} autoCapitalize="words" />
@@ -124,7 +132,11 @@ export default function ProfileScreen() {
             <AppButton title="Redibujar" variant="outline" onPress={() => { setSignatureBase64(''); setShowSigPad(true); }} />
           </View>
         ) : showSigPad ? (
-          <SignaturePad onSave={(b64) => { setSignatureBase64(b64); setShowSigPad(false); }} />
+          <SignaturePad
+            onSave={(b64) => { setSignatureBase64(b64); setShowSigPad(false); setScrollEnabled(true); }}
+            onDrawStart={() => setScrollEnabled(false)}
+            onDrawEnd={() => setScrollEnabled(true)}
+          />
         ) : (
           <AppButton title="Cambiar firma" variant="outline" onPress={() => setShowSigPad(true)} style={styles.sigBtn} />
         )}

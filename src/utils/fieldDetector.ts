@@ -1,4 +1,4 @@
-import { readAsStringAsync, EncodingType } from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { Field, FieldType } from '../types';
 import { FIELD_PATTERNS, SEMANTIC_RULES } from '../constants/fieldPatterns';
 // @ts-ignore
