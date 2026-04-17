@@ -34,9 +34,7 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-document-picker",
-      "expo-file-system",
-      "expo-print"
+      "expo-document-picker"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
