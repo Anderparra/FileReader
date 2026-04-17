@@ -7,7 +7,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import InlineWebPreview from '../../components/common/InlineWebPreview';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { CompositeNavigationProp } from '@react-navigation/native';
@@ -188,11 +188,11 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           {showBasePreview ? (
             <View style={styles.basePreview}>
-              <WebView
-                source={{ html: basePreviewHtml }}
-                style={styles.basePreviewWebview}
-                originWhitelist={['*']}
-                scalesPageToFit
+              <InlineWebPreview
+                html={basePreviewHtml}
+                minHeight={280}
+                maxHeight={2000}
+                style={styles.basePreviewInner}
               />
               <Text style={styles.baseHint}>
                 Los campos detectados aparecen resaltados en amarillo.
@@ -343,16 +343,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   previewToggleText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
-  basePreview: {
-    height: 300,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.white,
-  },
-  basePreviewWebview: { flex: 1, backgroundColor: 'transparent' },
+  basePreview: { marginBottom: 16 },
+  basePreviewInner: {},
   baseHint: {
     fontSize: 11,
     color: Colors.textSecondary,

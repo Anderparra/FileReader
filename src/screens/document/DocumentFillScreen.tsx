@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+import InlineWebPreview from '../../components/common/InlineWebPreview';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { DocumentStackParamList } from '../../navigation/types';
@@ -179,14 +179,12 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
         </TouchableOpacity>
 
         {showLivePreview ? (
-          <View style={styles.livePreview}>
-            <WebView
-              source={{ html: livePreviewHtml }}
-              style={styles.livePreviewWebview}
-              originWhitelist={['*']}
-              scalesPageToFit
-            />
-          </View>
+          <InlineWebPreview
+            html={livePreviewHtml}
+            minHeight={320}
+            maxHeight={2000}
+            style={styles.livePreview}
+          />
         ) : null}
 
         {template.fields
@@ -378,14 +376,5 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   previewToggleText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
-  livePreview: {
-    height: 360,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.white,
-  },
-  livePreviewWebview: { flex: 1, backgroundColor: 'transparent' },
+  livePreview: { marginBottom: 16 },
 });

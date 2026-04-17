@@ -1,8 +1,7 @@
 import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { Field, FieldType } from '../types';
 import { FIELD_PATTERNS, NAME_STOPWORDS, SEMANTIC_RULES } from '../constants/fieldPatterns';
-// @ts-ignore
-import JSZip from 'jszip';
+import { readDocxFormatted } from './docxRenderer';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -91,53 +90,29 @@ function detectRawMatches(text: string): RawMatch[] {
   return matches;
 }
 
-function buildHtmlContent(rawText: string, fields: Field[]): string {
-  let html = escapeHtml(rawText).replace(/\n/g, '<br/>');
+function substitutePlaceholdersInHtml(html: string, fields: Field[]): string {
   const sortedFields = [...fields].sort((a, b) => b.placeholder.length - a.placeholder.length);
+  let out = html;
   for (const field of sortedFields) {
-    const escaped = escapeHtml(field.placeholder);
     const token = `{{${field.id}}}`;
-    html = html.split(escaped).join(token);
+    const escaped = escapeHtml(field.placeholder);
+    if (out.includes(escaped)) {
+      out = out.split(escaped).join(token);
+    } else if (out.includes(field.placeholder)) {
+      out = out.split(field.placeholder).join(token);
+    }
   }
+  return out;
+}
+
+function buildFallbackHtml(rawText: string, fields: Field[]): string {
+  let html = escapeHtml(rawText).replace(/\n/g, '<br/>');
+  html = substitutePlaceholdersInHtml(html, fields);
   return `<div style="font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;">${html}</div>`;
 }
 
 async function readTxt(uri: string): Promise<string> {
   return readAsStringAsync(uri, { encoding: EncodingType.UTF8 });
-}
-
-function decodeXmlEntities(s: string): string {
-  return s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
-}
-
-async function readDocx(uri: string): Promise<string> {
-  try {
-    const base64 = await readAsStringAsync(uri, {
-      encoding: EncodingType.Base64,
-    });
-    const zip = await JSZip.loadAsync(base64, { base64: true });
-    const xmlFile = zip.file('word/document.xml');
-    if (!xmlFile) return '';
-    const xml = await xmlFile.async('string');
-
-    let out = xml;
-    out = out.replace(/<w:p\b[^>]*\/>/g, '\n');
-    out = out.replace(/<\/w:p>/g, '\n');
-    out = out.replace(/<w:br\b[^>]*\/?>(<\/w:br>)?/g, '\n');
-    out = out.replace(/<w:tab\b[^>]*\/?>(<\/w:tab>)?/g, '\t');
-    out = out.replace(/<[^>]+>/g, '');
-    out = decodeXmlEntities(out);
-    out = out.replace(/[ \t]+/g, ' ');
-    out = out.replace(/\n{3,}/g, '\n\n');
-    return out.trim();
-  } catch {
-    return '';
-  }
 }
 
 export interface DetectionResult {
@@ -153,10 +128,14 @@ export async function detectFieldsFromFile(
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
 
   let rawText = '';
+  let sourceHtml: string | null = null;
+
   if (ext === 'txt' || ext === 'html' || ext === 'htm') {
     rawText = await readTxt(uri);
   } else if (ext === 'docx') {
-    rawText = await readDocx(uri);
+    const docx = await readDocxFormatted(uri);
+    rawText = docx.text;
+    sourceHtml = docx.html;
   } else {
     rawText = await readTxt(uri).catch(() => '');
   }
@@ -171,7 +150,10 @@ export async function detectFieldsFromFile(
     order: i,
   }));
 
-  const htmlContent = buildHtmlContent(rawText, fields);
+  const htmlContent = sourceHtml
+    ? substitutePlaceholdersInHtml(sourceHtml, fields)
+    : buildFallbackHtml(rawText, fields);
+
   return { fields, htmlContent, rawText };
 }
 
