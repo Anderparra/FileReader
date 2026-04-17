@@ -17,7 +17,7 @@ import SignaturePad from '../../components/document/SignaturePad';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { saveProfile } from '../../storage/profileStorage';
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;

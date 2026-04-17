@@ -17,7 +17,7 @@ import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
 import { useProfile } from '../../hooks/useProfile';
-import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
+import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system';
 
 export default function ProfileScreen() {
   const { profile, loading, save } = useProfile();
