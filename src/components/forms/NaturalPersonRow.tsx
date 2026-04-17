@@ -4,6 +4,7 @@ import { NaturalPerson } from '../../types';
 import AppTextInput from '../common/AppTextInput';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
+import { validateCedula } from '../../utils/coValidators';
 
 interface Props {
   person: NaturalPerson;
@@ -12,6 +13,9 @@ interface Props {
 }
 
 export default function NaturalPersonRow({ person, onChange, onRemove }: Props) {
+  const v = validateCedula(person.cedula);
+  const showStatus = person.cedula.length > 0;
+
   return (
     <View style={styles.container}>
       <AppTextInput
@@ -28,6 +32,11 @@ export default function NaturalPersonRow({ person, onChange, onRemove }: Props) 
         keyboardType="numeric"
         style={styles.input}
       />
+      {showStatus ? (
+        <Text style={[styles.status, { color: v.valid ? Colors.success : Colors.danger }]}>
+          {v.valid ? '✓ Cédula válida' : `⚠ ${v.message ?? 'Cédula inválida'}`}
+        </Text>
+      ) : null}
       <TouchableOpacity style={styles.removeBtn} onPress={onRemove}>
         <Text style={styles.removeText}>Eliminar</Text>
       </TouchableOpacity>
@@ -45,6 +54,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   input: { marginBottom: 10 },
+  status: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
   removeBtn: { alignSelf: 'flex-end' },
   removeText: { color: Colors.danger, fontSize: 13 },
 });

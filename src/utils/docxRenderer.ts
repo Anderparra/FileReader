@@ -5,6 +5,14 @@ import JSZip from 'jszip';
 export interface DocxResult {
   html: string;
   text: string;
+  tables: DetectedTable[];
+}
+
+export type TableKind = 'natural_persons' | 'legal_persons' | 'generic';
+
+export interface DetectedTable {
+  kind: TableKind;
+  html: string;
 }
 
 function decodeXmlEntities(s: string): string {
@@ -29,6 +37,19 @@ function escapeHtml(s: string): string {
 interface RenderContext {
   /** Map of rId → data URI for embedded images */
   imageMap: Record<string, string>;
+  /** Accumulated detected tables, filled while parsing */
+  detectedTables: DetectedTable[];
+}
+
+function classifyTable(headerText: string): TableKind {
+  const t = headerText.toLowerCase();
+  const hasName = t.includes('nombre') || t.includes('apellido');
+  const hasCedula = t.includes('identificaci') || t.includes('cédula') || t.includes('cedula') || t.includes('c.c.');
+  const hasNit = t.includes('nit');
+  if (hasName && hasNit) return 'legal_persons';
+  if (hasName && hasCedula) return 'natural_persons';
+  if (hasName && (t.includes('nro') || t.includes('no.') || t.includes('#')) && !hasNit) return 'natural_persons';
+  return 'generic';
 }
 
 function parseRun(runXml: string, ctx: RenderContext): { html: string; text: string } {
@@ -143,6 +164,8 @@ function parseTable(tblXml: string, ctx: RenderContext): { html: string; text: s
   let html =
     '<table style="border-collapse:collapse;width:100%;margin:6pt 0;border:1px solid #666;">';
   let text = '';
+  let headerText = '';
+  let rowIndex = 0;
   let rm: RegExpExecArray | null;
   while ((rm = rowRegex.exec(tblXml)) !== null) {
     const rowXml = rm[0];
@@ -154,11 +177,18 @@ function parseTable(tblXml: string, ctx: RenderContext): { html: string; text: s
       const { html: cellHtml, text: cellText } = parseBlocks(cellContent, ctx);
       html += `<td style="border:1px solid #666;padding:4pt 6pt;vertical-align:top;">${cellHtml}</td>`;
       text += cellText + '\t';
+      if (rowIndex === 0) headerText += cellText + ' ';
     }
     html += '</tr>';
     text += '\n';
+    rowIndex++;
   }
   html += '</table>';
+
+  const kind = classifyTable(headerText);
+  if (kind !== 'generic') {
+    ctx.detectedTables.push({ kind, html });
+  }
   return { html, text };
 }
 
@@ -222,11 +252,11 @@ export async function readDocxFormatted(uri: string): Promise<DocxResult> {
     const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
     const zip = await JSZip.loadAsync(base64, { base64: true });
     const docFile = zip.file('word/document.xml');
-    if (!docFile) return { html: '', text: '' };
+    if (!docFile) return { html: '', text: '', tables: [] };
 
     const xml = await docFile.async('string');
     const imageMap = await buildImageMap(zip);
-    const ctx: RenderContext = { imageMap };
+    const ctx: RenderContext = { imageMap, detectedTables: [] };
 
     const bodyMatch = xml.match(/<w:body>([\s\S]*)<\/w:body>/);
     const body = bodyMatch ? bodyMatch[1] : xml;
@@ -234,8 +264,12 @@ export async function readDocxFormatted(uri: string): Promise<DocxResult> {
     const { html, text } = parseBlocks(body, ctx);
 
     const wrapped = `<div style="font-family:'Times New Roman',serif;font-size:11pt;line-height:1.4;color:#1a1a1a;">${html}</div>`;
-    return { html: wrapped, text: text.replace(/\n{3,}/g, '\n\n').trim() };
+    return {
+      html: wrapped,
+      text: text.replace(/\n{3,}/g, '\n\n').trim(),
+      tables: ctx.detectedTables,
+    };
   } catch {
-    return { html: '', text: '' };
+    return { html: '', text: '', tables: [] };
   }
 }

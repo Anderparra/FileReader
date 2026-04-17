@@ -130,18 +130,23 @@ export async function detectFieldsFromFile(
   let rawText = '';
   let sourceHtml: string | null = null;
 
+  let detectedTables: { kind: 'natural_persons' | 'legal_persons'; html: string }[] = [];
+
   if (ext === 'txt' || ext === 'html' || ext === 'htm') {
     rawText = await readTxt(uri);
   } else if (ext === 'docx') {
     const docx = await readDocxFormatted(uri);
     rawText = docx.text;
     sourceHtml = docx.html;
+    detectedTables = docx.tables.filter(
+      (t) => t.kind === 'natural_persons' || t.kind === 'legal_persons'
+    ) as typeof detectedTables;
   } else {
     rawText = await readTxt(uri).catch(() => '');
   }
 
   const rawMatches = detectRawMatches(rawText);
-  const fields: Field[] = rawMatches.map((m, i) => ({
+  const textFields: Field[] = rawMatches.map((m, i) => ({
     id: uuidv4(),
     label: m.label,
     placeholder: m.placeholder,
@@ -149,6 +154,25 @@ export async function detectFieldsFromFile(
     required: false,
     order: i,
   }));
+
+  let naturalCount = 0;
+  let legalCount = 0;
+  const tableFields: Field[] = detectedTables.map((t, i) => {
+    const isNat = t.kind === 'natural_persons';
+    const idx = isNat ? ++naturalCount : ++legalCount;
+    return {
+      id: uuidv4(),
+      label: isNat
+        ? `Tabla de personas naturales${idx > 1 ? ` #${idx}` : ''}`
+        : `Tabla de personas jurídicas${idx > 1 ? ` #${idx}` : ''}`,
+      placeholder: t.html,
+      type: isNat ? 'natural_persons_table' : 'legal_persons_table',
+      required: false,
+      order: textFields.length + i,
+    };
+  });
+
+  const fields = [...textFields, ...tableFields];
 
   const htmlContent = sourceHtml
     ? substitutePlaceholdersInHtml(sourceHtml, fields)

@@ -1,4 +1,9 @@
-import { DocumentFieldValue, Field, InvestigatorProfile, LegalPerson, NaturalPerson, Template } from '../types';
+import { DocumentAttachment, DocumentFieldValue, InvestigatorProfile, LegalPerson, NaturalPerson, Template } from '../types';
+
+export interface RenderOptions {
+  attachments?: DocumentAttachment[];
+  caseRef?: string;
+}
 
 function escapeHtml(text: string): string {
   return String(text)
@@ -55,8 +60,10 @@ function legalPersonsTable(persons: LegalPerson[]): string {
 export function buildRenderedHtml(
   template: Template,
   fieldValues: DocumentFieldValue[],
-  profile: InvestigatorProfile
+  profile: InvestigatorProfile,
+  options: RenderOptions = {}
 ): string {
+  const { attachments = [], caseRef } = options;
   const valueMap = new Map<string, DocumentFieldValue['value']>();
   for (const fv of fieldValues) valueMap.set(fv.fieldId, fv.value);
 
@@ -97,6 +104,24 @@ export function buildRenderedHtml(
     ? `<img src="${profile.signatureFileUri}" style="height:70px;display:block;margin-bottom:4px;" alt="Firma"/>`
     : '<div style="height:70px;border-bottom:1px solid #333;width:200px;"></div>';
 
+  const caseBlock = caseRef
+    ? `<p style="font-size:10pt;color:#555;margin:4px 0;">Caso/Radicado: <strong>${escapeHtml(caseRef)}</strong></p>`
+    : '';
+
+  const attachmentsBlock = attachments.length > 0
+    ? `<div class="attachments" style="margin-top:40px;page-break-before:auto;">
+        <h3 style="color:#003087;border-bottom:1px solid #003087;padding-bottom:4px;">Evidencia fotográfica</h3>
+        ${attachments.map((a, i) => `
+          <div style="margin:12px 0;page-break-inside:avoid;">
+            <img src="${a.uri}" style="max-width:100%;max-height:400px;border:1px solid #999;"/>
+            <p style="font-size:10pt;color:#555;margin:4px 0 0 0;">
+              Foto ${i + 1}${a.label ? ` - ${escapeHtml(a.label)}` : ''} · ${new Date(a.createdAt).toLocaleString('es-CO')}
+            </p>
+          </div>
+        `).join('')}
+      </div>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -130,6 +155,7 @@ export function buildRenderedHtml(
   </style>
 </head>
 <body>
+  ${caseBlock}
   ${html}
   <div class="footer-block">
     ${signatureBlock}
@@ -138,6 +164,7 @@ export function buildRenderedHtml(
     <p style="margin:4px 0;">${escapeHtml(profile.position)}</p>
     <p style="margin:4px 0;">${escapeHtml(profile.unit)}</p>
   </div>
+  ${attachmentsBlock}
   <div class="footer-reserved">INFORMACIÓN PÚBLICA RESERVADA</div>
 </body>
 </html>`;

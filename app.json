@@ -16,8 +16,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.policia.gestiondocumental",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Se necesita acceso para guardar tu firma.",
-        "NSDocumentsFolderUsageDescription": "Se necesita acceso para gestionar documentos."
+        "NSPhotoLibraryUsageDescription": "Se necesita acceso a la galería para adjuntar evidencia fotográfica y guardar tu firma.",
+        "NSCameraUsageDescription": "Se necesita acceso a la cámara para tomar fotografías de evidencia.",
+        "NSDocumentsFolderUsageDescription": "Se necesita acceso para gestionar documentos.",
+        "NSFaceIDUsageDescription": "Usa Face ID para desbloquear la aplicación."
       }
     },
     "android": {
@@ -35,6 +37,19 @@
     },
     "plugins": [
       "expo-document-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir a Gestión Documental acceder a tus fotos para adjuntar evidencia.",
+          "cameraPermission": "Permitir a Gestión Documental usar la cámara para tomar fotos de evidencia."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Usa Face ID para desbloquear Gestión Documental."
+        }
+      ],
       [
         "expo-build-properties",
         {

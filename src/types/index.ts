@@ -51,6 +51,14 @@ export interface DocumentFieldValue {
   value: string | NaturalPerson[] | LegalPerson[];
 }
 
+export interface DocumentAttachment {
+  id: string;
+  uri: string;
+  type: 'image';
+  label?: string;
+  createdAt: string;
+}
+
 export interface SavedDocument {
   id: string;
   templateId: string;
@@ -62,6 +70,8 @@ export interface SavedDocument {
   createdAt: string;
   updatedAt: string;
   exportedAt?: string;
+  caseRef?: string;
+  attachments?: DocumentAttachment[];
 }
 
 export interface InvestigatorProfile {

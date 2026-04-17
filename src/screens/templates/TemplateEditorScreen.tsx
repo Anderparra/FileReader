@@ -56,6 +56,8 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
   const [htmlContent, setHtmlContent] = useState('');
   const [sourceType, setSourceType] = useState<'uploaded' | 'scratch'>('scratch');
   const [showBasePreview, setShowBasePreview] = useState(false);
+  const [anchorType, setAnchorType] = useState<FieldType | null>(null);
+  const [anchorText, setAnchorText] = useState('');
 
   useEffect(() => {
     if (editingId) {
@@ -84,17 +86,66 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
       }</body></html>`
     : '';
 
-  const addField = (type: FieldType) => {
+  const beginAddField = (type: FieldType) => {
+    setShowAddField(false);
+    setAnchorText('');
+    setAnchorType(type);
+  };
+
+  const cancelAnchor = () => {
+    setAnchorType(null);
+    setAnchorText('');
+  };
+
+  const escapeForHtml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const confirmAddField = (appendOnly = false) => {
+    if (!anchorType) return;
+    const trimmed = anchorText.trim();
+    const newId = uuidv4();
+    const defaultLabel = trimmed ? trimmed.slice(0, 40) : Strings.fieldTypes[anchorType];
+    const placeholder = trimmed || `{{${anchorType}_${Date.now()}}}`;
+
     const newField: Field = {
-      id: uuidv4(),
-      label: Strings.fieldTypes[type],
-      placeholder: `{{${type}}}`,
-      type,
+      id: newId,
+      label: defaultLabel,
+      placeholder,
+      type: anchorType,
       required: false,
       order: fields.length,
     };
+
+    if (!appendOnly && trimmed && htmlContent) {
+      const token = `{{${newId}}}`;
+      const escaped = escapeForHtml(trimmed);
+      let updated = htmlContent;
+      let replacements = 0;
+      if (updated.includes(escaped)) {
+        updated = updated.split(escaped).join(token);
+        replacements++;
+      } else if (updated.includes(trimmed)) {
+        updated = updated.split(trimmed).join(token);
+        replacements++;
+      }
+      if (replacements === 0) {
+        Alert.alert(
+          'No se encontró ese texto',
+          'No pude encontrar esa frase dentro del documento base. Puedo igual agregar el campo (aparecerá al final del documento).',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Agregar al final', onPress: () => confirmAddField(true) },
+          ],
+        );
+        return;
+      }
+      setHtmlContent(updated);
+    } else if (appendOnly && htmlContent) {
+      setHtmlContent(htmlContent + `<p>${escapeForHtml(defaultLabel)}: {{${newId}}}</p>`);
+    }
+
     setFields((prev) => [...prev, newField]);
-    setShowAddField(false);
+    cancelAnchor();
   };
 
   const updateLabel = (id: string, label: string) => {
@@ -216,12 +267,42 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
             <TouchableOpacity
               key={opt.type}
               style={styles.typeOption}
-              onPress={() => addField(opt.type)}
+              onPress={() => beginAddField(opt.type)}
             >
               <Text style={styles.typeOptionIcon}>{opt.icon}</Text>
               <Text style={styles.typeOptionLabel}>{opt.label}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+      )}
+
+      {anchorType && (
+        <View style={styles.anchorPanel}>
+          <Text style={styles.anchorTitle}>
+            Anclar "{Strings.fieldTypes[anchorType]}" a un texto del documento
+          </Text>
+          <Text style={styles.anchorHint}>
+            Escribe o pega aquí el texto exacto del documento base que quieres
+            reemplazar con este campo. Si lo dejas vacío el campo se añade al final.
+          </Text>
+          <AppTextInput
+            label="Texto a reemplazar"
+            value={anchorText}
+            onChangeText={setAnchorText}
+            multiline
+            numberOfLines={3}
+            placeholder="Ej. Bogotá D.C."
+          />
+          <View style={styles.anchorActions}>
+            <TouchableOpacity style={styles.anchorCancel} onPress={cancelAnchor}>
+              <Text style={styles.anchorCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.anchorConfirm} onPress={() => confirmAddField(false)}>
+              <Text style={styles.anchorConfirmText}>
+                {anchorText.trim() ? 'Anclar al texto' : 'Agregar al final'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -359,4 +440,32 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   detectedValue: { color: Colors.primary, fontWeight: '600' },
+  anchorPanel: {
+    backgroundColor: Colors.primaryLight + '11',
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  anchorTitle: { fontSize: 14, fontWeight: '700', color: Colors.primary, marginBottom: 4 },
+  anchorHint: { fontSize: 12, color: Colors.textSecondary, marginBottom: 8, lineHeight: 17 },
+  anchorActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  anchorCancel: {
+    flex: 1,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  anchorCancelText: { color: Colors.textSecondary, fontWeight: '600' },
+  anchorConfirm: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  anchorConfirmText: { color: Colors.white, fontWeight: '700' },
 });

@@ -14,6 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { DocumentStackParamList } from '../../navigation/types';
 import {
+  DocumentAttachment,
   DocumentFieldValue,
   Field,
   LegalPerson,
@@ -29,6 +30,7 @@ import LoadingOverlay from '../../components/common/LoadingOverlay';
 import NaturalPersonRow from '../../components/forms/NaturalPersonRow';
 import LegalPersonRow from '../../components/forms/LegalPersonRow';
 import SnippetPicker from '../../components/common/SnippetPicker';
+import EvidencePicker from '../../components/document/EvidencePicker';
 import { getTemplateById } from '../../storage/templateStorage';
 import { getDocumentById, saveDocument } from '../../storage/documentStorage';
 import { getProfile } from '../../storage/profileStorage';
@@ -53,6 +55,8 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
   const [saving, setSaving] = useState(false);
   const [docId] = useState(documentId ?? uuidv4());
   const [showLivePreview, setShowLivePreview] = useState(true);
+  const [caseRef, setCaseRef] = useState('');
+  const [attachments, setAttachments] = useState<DocumentAttachment[]>([]);
 
   useEffect(() => {
     const init = async () => {
@@ -70,6 +74,8 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
 
       if (existing) {
         setDocTitle(existing.title);
+        setCaseRef(existing.caseRef ?? '');
+        setAttachments(existing.attachments ?? []);
         for (const fv of existing.fieldValues) initial.set(fv.fieldId, fv.value);
       } else {
         setDocTitle(`Oficio - ${new Date().toLocaleDateString('es-CO')}`);
@@ -117,15 +123,15 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
 
   const livePreviewHtml = useMemo(() => {
     if (!template || !profile) return '';
-    return buildRenderedHtml(template, buildFieldValuesArray(), profile);
-  }, [template, profile, buildFieldValuesArray]);
+    return buildRenderedHtml(template, buildFieldValuesArray(), profile, { attachments, caseRef });
+  }, [template, profile, buildFieldValuesArray, attachments, caseRef]);
 
   const handleSave = async (status: SavedDocument['status']) => {
     if (!template || !profile) return;
     setSaving(true);
     try {
       const fvArray = buildFieldValuesArray();
-      const rendered = buildRenderedHtml(template, fvArray, profile);
+      const rendered = buildRenderedHtml(template, fvArray, profile, { attachments, caseRef });
       const now = new Date().toISOString();
       await saveDocument({
         id: docId,
@@ -137,6 +143,8 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
         renderedHtml: rendered,
         createdAt: now,
         updatedAt: now,
+        caseRef: caseRef.trim() || undefined,
+        attachments,
       });
       if (status === 'complete') {
         navigation.replace('DocumentPreview', { documentId: docId, title: docTitle });
@@ -151,7 +159,7 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
   const handlePreview = () => {
     if (!template || !profile) return;
     const fvArray = buildFieldValuesArray();
-    const rendered = buildRenderedHtml(template, fvArray, profile);
+    const rendered = buildRenderedHtml(template, fvArray, profile, { attachments, caseRef });
     navigation.navigate('DocumentPreview', { renderedHtml: rendered, title: docTitle });
   };
 
@@ -168,6 +176,18 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
           label={Strings.documents.documentTitle}
           value={docTitle}
           onChangeText={setDocTitle}
+        />
+        <AppTextInput
+          label="Caso / Radicado (opcional)"
+          value={caseRef}
+          onChangeText={setCaseRef}
+          placeholder="Ej. SPOA-110016000101202300123"
+          autoCapitalize="characters"
+        />
+
+        <EvidencePicker
+          attachments={attachments}
+          onChange={setAttachments}
         />
 
         <TouchableOpacity

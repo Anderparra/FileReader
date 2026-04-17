@@ -4,6 +4,7 @@ export const STORAGE_KEYS = {
   DOCUMENTS: '@policia/documents',
   ONBOARDING_COMPLETE: '@policia/onboarding',
   SNIPPETS: '@policia/snippets',
+  SECURITY_ENABLED: '@policia/security_enabled',
 } as const;
 
 export const templateHtmlKey = (id: string) => `@policia/template_html_${id}`;

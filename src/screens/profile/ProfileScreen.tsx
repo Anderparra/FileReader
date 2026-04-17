@@ -19,7 +19,10 @@ import { Strings } from '../../constants/strings';
 import { useProfile } from '../../hooks/useProfile';
 import { documentDirectory, writeAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { Switch } from 'react-native';
 import { exportBackup, importBackup } from '../../utils/backup';
+import { isSecurityEnabled, setSecurityEnabled } from '../../storage/securityStorage';
 
 export default function ProfileScreen() {
   const { profile, loading, save } = useProfile();
@@ -33,6 +36,31 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [securityOn, setSecurityOn] = useState(false);
+
+  React.useEffect(() => {
+    isSecurityEnabled().then(setSecurityOn);
+  }, []);
+
+  const toggleSecurity = async (value: boolean) => {
+    if (value) {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !enrolled) {
+        Alert.alert(
+          'No disponible',
+          'Este dispositivo no tiene huella, rostro o PIN configurados. Configúralo en Ajustes del sistema primero.',
+        );
+        return;
+      }
+      const r = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirmar activación del bloqueo',
+      });
+      if (!r.success) return;
+    }
+    setSecurityOn(value);
+    await setSecurityEnabled(value);
+  };
 
   const handleBackup = async () => {
     setBusy(true);
@@ -157,6 +185,19 @@ export default function ProfileScreen() {
         ) : null}
 
         <AppButton title={Strings.profile.editProfile} onPress={startEdit} style={styles.editBtn} />
+
+        <View style={styles.backupSection}>
+          <Text style={styles.sectionTitle}>Seguridad</Text>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Bloqueo al abrir (huella / rostro / PIN)</Text>
+              <Text style={styles.sectionHint}>
+                Exige autenticación del dispositivo cada vez que abres la app.
+              </Text>
+            </View>
+            <Switch value={securityOn} onValueChange={toggleSecurity} />
+          </View>
+        </View>
 
         <View style={styles.backupSection}>
           <Text style={styles.sectionTitle}>Copia de seguridad</Text>
@@ -286,4 +327,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: '700', color: Colors.primary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   sectionHint: { fontSize: 12, color: Colors.textSecondary, marginBottom: 12, lineHeight: 17 },
   backupBtn: { marginBottom: 8 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  switchLabel: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4 },
 });
