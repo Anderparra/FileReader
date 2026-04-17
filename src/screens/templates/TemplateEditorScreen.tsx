@@ -7,9 +7,12 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { TemplateStackParamList } from '../../navigation/types';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList, TemplateStackParamList } from '../../navigation/types';
 import { Field, FieldType } from '../../types';
 import { Colors } from '../../constants/colors';
 import { Strings } from '../../constants/strings';
@@ -21,8 +24,13 @@ import { buildTemplateFromScratch } from '../../utils/fieldDetector';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
+type Nav = CompositeNavigationProp<
+  NativeStackNavigationProp<TemplateStackParamList, 'TemplateEditor'>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
+
 type Props = {
-  navigation: NativeStackNavigationProp<TemplateStackParamList, 'TemplateEditor'>;
+  navigation: Nav;
   route: RouteProp<TemplateStackParamList, 'TemplateEditor'>;
 };
 
@@ -45,6 +53,9 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
   const [fields, setFields] = useState<Field[]>([]);
   const [saving, setSaving] = useState(false);
   const [showAddField, setShowAddField] = useState(false);
+  const [htmlContent, setHtmlContent] = useState('');
+  const [sourceType, setSourceType] = useState<'uploaded' | 'scratch'>('scratch');
+  const [showBasePreview, setShowBasePreview] = useState(false);
 
   useEffect(() => {
     if (editingId) {
@@ -53,11 +64,25 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
           setTemplateName(t.name);
           setDescription(t.description);
           setFields(t.fields);
+          setHtmlContent(t.htmlContent);
+          setSourceType(t.sourceType);
         }
         setLoading(false);
       });
     }
   }, [editingId]);
+
+  const basePreviewHtml = htmlContent
+    ? `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><style>
+        body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;padding:16px;color:#1a1a1a;}
+        mark.field-mark{background:#ffe08a;padding:1px 4px;border-radius:3px;color:#7a5c00;font-weight:600;}
+      </style></head><body>${
+        fields.reduce((acc, f) => {
+          const label = f.label.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+          return acc.split(`{{${f.id}}}`).join(`<mark class="field-mark">[${label}]</mark>`);
+        }, htmlContent)
+      }</body></html>`
+    : '';
 
   const addField = (type: FieldType) => {
     const newField: Field = {
@@ -100,13 +125,15 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const htmlContent = buildTemplateFromScratch(fields);
+      const finalHtml = sourceType === 'uploaded' && htmlContent
+        ? htmlContent
+        : buildTemplateFromScratch(fields);
       await saveTemplate({
         id: editingId ?? uuidv4(),
         name: templateName.trim(),
         description: description.trim(),
-        sourceType: 'scratch',
-        htmlContent,
+        sourceType,
+        htmlContent: finalHtml,
         fields,
         createdAt: now,
         updatedAt: now,
@@ -115,6 +142,19 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCreateDocument = () => {
+    if (!editingId) {
+      Alert.alert('', 'Guarda la plantilla antes de crear un documento.');
+      return;
+    }
+    navigation
+      .getParent()
+      ?.navigate('Documentos', {
+        screen: 'DocumentFill',
+        params: { templateId: editingId },
+      });
   };
 
   if (loading) return <LoadingOverlay />;
@@ -129,6 +169,38 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
         multiline
         numberOfLines={2}
       />
+
+      {editingId ? (
+        <TouchableOpacity style={styles.createDocBtn} onPress={handleCreateDocument}>
+          <Text style={styles.createDocText}>📄  Crear documento con esta plantilla</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {htmlContent ? (
+        <>
+          <TouchableOpacity
+            style={styles.previewToggle}
+            onPress={() => setShowBasePreview((v) => !v)}
+          >
+            <Text style={styles.previewToggleText}>
+              {showBasePreview ? '🔽  Ocultar documento base' : '▶️  Ver documento base'}
+            </Text>
+          </TouchableOpacity>
+          {showBasePreview ? (
+            <View style={styles.basePreview}>
+              <WebView
+                source={{ html: basePreviewHtml }}
+                style={styles.basePreviewWebview}
+                originWhitelist={['*']}
+                scalesPageToFit
+              />
+              <Text style={styles.baseHint}>
+                Los campos detectados aparecen resaltados en amarillo.
+              </Text>
+            </View>
+          ) : null}
+        </>
+      ) : null}
 
       <View style={styles.sectionRow}>
         <Text style={styles.sectionTitle}>Campos ({fields.length})</Text>
@@ -175,6 +247,11 @@ export default function TemplateEditorScreen({ navigation, route }: Props) {
             onChangeText={(t) => updateLabel(field.id, t)}
             style={styles.noMargin}
           />
+          {field.placeholder && !field.placeholder.startsWith('{{') ? (
+            <Text style={styles.detectedHint} numberOfLines={2}>
+              Detectado: <Text style={styles.detectedValue}>{field.placeholder}</Text>
+            </Text>
+          ) : null}
         </View>
       ))}
 
@@ -248,4 +325,46 @@ const styles = StyleSheet.create({
   emptyFields: { alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center' },
   saveBtn: { marginTop: 16 },
+  createDocBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  createDocText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
+  previewToggle: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  previewToggleText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
+  basePreview: {
+    height: 300,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+  },
+  basePreviewWebview: { flex: 1, backgroundColor: 'transparent' },
+  baseHint: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    padding: 6,
+    textAlign: 'center',
+    backgroundColor: Colors.surface,
+  },
+  detectedHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 6,
+    fontStyle: 'italic',
+  },
+  detectedValue: { color: Colors.primary, fontWeight: '600' },
 });

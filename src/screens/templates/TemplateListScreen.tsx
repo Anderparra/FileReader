@@ -53,11 +53,11 @@ export default function TemplateListScreen({ navigation }: Props) {
           />
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('TemplateEditor', { templateId: item.id })}
-          >
-            <View style={styles.cardContent}>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => navigation.navigate('TemplateEditor', { templateId: item.id })}
+            >
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
                   {item.sourceType === 'uploaded' ? '📎' : '📝'}
@@ -75,8 +75,21 @@ export default function TemplateListScreen({ navigation }: Props) {
               <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
                 <Text style={styles.deleteIcon}>🗑</Text>
               </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.createDocBtn}
+              onPress={() =>
+                navigation
+                  .getParent()
+                  ?.navigate('Documentos', {
+                    screen: 'DocumentFill',
+                    params: { templateId: item.id },
+                  })
+              }
+            >
+              <Text style={styles.createDocText}>📄  Crear documento</Text>
+            </TouchableOpacity>
+          </View>
         )}
         contentContainerStyle={templates.length === 0 ? styles.flex : styles.list}
       />
@@ -127,6 +140,14 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12, color: Colors.primary, marginTop: 4 },
   deleteBtn: { padding: 8 },
   deleteIcon: { fontSize: 18 },
+  createDocBtn: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  createDocText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
   fab: {
     position: 'absolute',
     bottom: 20,

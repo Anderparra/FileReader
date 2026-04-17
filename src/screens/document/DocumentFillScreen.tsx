@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { DocumentStackParamList } from '../../navigation/types';
@@ -50,6 +51,7 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
   const [docTitle, setDocTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [docId] = useState(documentId ?? uuidv4());
+  const [showLivePreview, setShowLivePreview] = useState(true);
 
   useEffect(() => {
     const init = async () => {
@@ -108,8 +110,14 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
     setFieldValues((prev) => new Map(prev).set(fieldId, value));
   }, []);
 
-  const buildFieldValuesArray = (): DocumentFieldValue[] =>
-    Array.from(fieldValues.entries()).map(([fieldId, value]) => ({ fieldId, value }));
+  const buildFieldValuesArray = useCallback((): DocumentFieldValue[] =>
+    Array.from(fieldValues.entries()).map(([fieldId, value]) => ({ fieldId, value })),
+  [fieldValues]);
+
+  const livePreviewHtml = useMemo(() => {
+    if (!template || !profile) return '';
+    return buildRenderedHtml(template, buildFieldValuesArray(), profile);
+  }, [template, profile, buildFieldValuesArray]);
 
   const handleSave = async (status: SavedDocument['status']) => {
     if (!template || !profile) return;
@@ -161,13 +169,33 @@ export default function DocumentFillScreen({ navigation, route }: Props) {
           onChangeText={setDocTitle}
         />
 
+        <TouchableOpacity
+          style={styles.previewToggle}
+          onPress={() => setShowLivePreview((v) => !v)}
+        >
+          <Text style={styles.previewToggleText}>
+            {showLivePreview ? '🔽  Ocultar vista previa' : '▶️  Mostrar vista previa'}
+          </Text>
+        </TouchableOpacity>
+
+        {showLivePreview ? (
+          <View style={styles.livePreview}>
+            <WebView
+              source={{ html: livePreviewHtml }}
+              style={styles.livePreviewWebview}
+              originWhitelist={['*']}
+              scalesPageToFit
+            />
+          </View>
+        ) : null}
+
         {template.fields
           .sort((a, b) => a.order - b.order)
           .map((field) => renderField(field, fieldValues, setValue, profile))}
 
         <View style={styles.actionRow}>
           <AppButton
-            title="Vista Previa"
+            title="Vista Previa Completa"
             variant="outline"
             onPress={handlePreview}
             style={styles.actionBtn}
@@ -340,4 +368,24 @@ const styles = StyleSheet.create({
   addPersonText: { color: Colors.primaryLight, fontSize: 14, fontWeight: '600' },
   actionRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   actionBtn: { flex: 1 },
+  previewToggle: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  previewToggleText: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
+  livePreview: {
+    height: 360,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.white,
+  },
+  livePreviewWebview: { flex: 1, backgroundColor: 'transparent' },
 });
