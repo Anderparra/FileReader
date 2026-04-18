@@ -109,28 +109,28 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           label={Strings.profile.fullName}
           value={fullName}
           onChangeText={setFullName}
-          placeholder="Ej. Juan Carlos Rodríguez López"
+          placeholder="Nombres y apellidos completos"
           autoCapitalize="words"
         />
         <AppTextInput
           label={Strings.profile.rank}
           value={rank}
           onChangeText={setRank}
-          placeholder="Ej. Patrullero de Policía"
+          placeholder="Tu grado o rango"
           autoCapitalize="words"
         />
         <AppTextInput
           label={Strings.profile.position}
           value={position}
           onChangeText={setPosition}
-          placeholder="Ej. Investigador Criminal"
+          placeholder="Tu cargo actual"
           autoCapitalize="words"
         />
         <AppTextInput
           label={Strings.profile.unit}
           value={unit}
           onChangeText={setUnit}
-          placeholder="Ej. DIJIN - AIFIT-GRULA"
+          placeholder="Unidad o dependencia a la que perteneces"
           autoCapitalize="words"
         />
 

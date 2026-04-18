@@ -31,17 +31,17 @@ const STEPS: Array<{ emoji: string; title: string; render: () => React.ReactNode
 
         <View style={stepStyles.mockup}>
           <Text style={stepStyles.mockupLine}>
-            Bogotá D.C., <Text style={stepStyles.hl}>13 de enero de 2026</Text>
+            Bogotá D.C., <Text style={stepStyles.hl}>[fecha]</Text>
           </Text>
-          <Text style={stepStyles.mockupLine}>Doctora</Text>
+          <Text style={stepStyles.mockupLine}>Doctor / Doctora</Text>
           <Text style={stepStyles.mockupLine}>
-            <Text style={stepStyles.hl}>AURA LILIANA TRUJILLO ROJAS</Text>
-          </Text>
-          <Text style={stepStyles.mockupLine}>
-            Correo: <Text style={stepStyles.hl}>edwin.valencia@fiscalia.gov.co</Text>
+            <Text style={stepStyles.hl}>[nombre del destinatario]</Text>
           </Text>
           <Text style={stepStyles.mockupLine}>
-            Celular: <Text style={stepStyles.hl}>3234012609</Text>
+            Correo: <Text style={stepStyles.hl}>[correo electrónico]</Text>
+          </Text>
+          <Text style={stepStyles.mockupLine}>
+            Celular: <Text style={stepStyles.hl}>[número de contacto]</Text>
           </Text>
         </View>
 

@@ -6,7 +6,7 @@ import HomeScreen from '../screens/home/HomeScreen';
 import TemplateStackNavigator from './TemplateStackNavigator';
 import DocumentStackNavigator from './DocumentStackNavigator';
 import ProfileScreen from '../screens/profile/ProfileScreen';
-import SnippetsScreen from '../screens/snippets/SnippetsScreen';
+import ToolsStackNavigator from './ToolsStackNavigator';
 import { Colors } from '../constants/colors';
 import { Strings } from '../constants/strings';
 
@@ -17,7 +17,7 @@ function tabIcon(name: string, focused: boolean): string {
     Inicio: ['🏠', '🏠'],
     Plantillas: ['📋', '📋'],
     Documentos: ['📄', '📄'],
-    Frases: ['💬', '💬'],
+    Herramientas: ['🧰', '🧰'],
     Perfil: ['👤', '👤'],
   };
   return icons[name]?.[focused ? 0 : 1] ?? '●';
@@ -59,9 +59,9 @@ export default function MainTabNavigator() {
         options={{ title: Strings.tabs.documents, headerShown: false }}
       />
       <Tab.Screen
-        name="Frases"
-        component={SnippetsScreen}
-        options={{ title: 'Frases' }}
+        name="Herramientas"
+        component={ToolsStackNavigator}
+        options={{ title: 'Herramientas', headerShown: false }}
       />
       <Tab.Screen
         name="Perfil"

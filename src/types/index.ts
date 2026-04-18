@@ -93,3 +93,44 @@ export interface Snippet {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ContactRole =
+  | 'fiscal'
+  | 'juez'
+  | 'perito'
+  | 'investigador'
+  | 'testigo'
+  | 'abogado'
+  | 'otro';
+
+export interface Contact {
+  id: string;
+  fullName: string;
+  role: ContactRole;
+  position?: string;
+  organization?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  items: string[];
+}
+
+export interface ChecklistRun {
+  id: string;
+  templateId: string;
+  templateName: string;
+  caseRef?: string;
+  items: { text: string; done: boolean }[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -19,7 +19,8 @@
         "NSPhotoLibraryUsageDescription": "Se necesita acceso a la galería para adjuntar evidencia fotográfica y guardar tu firma.",
         "NSCameraUsageDescription": "Se necesita acceso a la cámara para tomar fotografías de evidencia.",
         "NSDocumentsFolderUsageDescription": "Se necesita acceso para gestionar documentos.",
-        "NSFaceIDUsageDescription": "Usa Face ID para desbloquear la aplicación."
+        "NSFaceIDUsageDescription": "Usa Face ID para desbloquear la aplicación.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

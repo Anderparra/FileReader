@@ -7,8 +7,16 @@ export type MainTabParamList = {
   Inicio: undefined;
   Plantillas: undefined;
   Documentos: undefined;
-  Frases: undefined;
+  Herramientas: undefined;
   Perfil: undefined;
+};
+
+export type ToolsStackParamList = {
+  ToolsHome: undefined;
+  Snippets: undefined;
+  Contacts: undefined;
+  Reference: undefined;
+  Checklists: undefined;
 };
 
 export type TemplateStackParamList = {
